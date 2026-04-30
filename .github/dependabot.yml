@@ -1,0 +1,15 @@
+# Please see the documentation for all configuration options:
+# https://help.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
+
+version: 2
+updates:
+  - package-ecosystem: "github-actions"
+    # "/" covers .github/workflows/*.yml; each composite action's directory
+    # must be listed explicitly so Dependabot updates the `uses:` refs inside
+    # its action.yml.
+    directories:
+      - "/"
+      - "/poetry"
+      - "/jira-release-sync"
+    schedule:
+      interval: "daily"
