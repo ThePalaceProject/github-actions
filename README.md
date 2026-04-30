@@ -52,7 +52,9 @@ referenced in the release body.
 ```
 
 Required inputs: `jira-base-url`, `jira-user-email`, `jira-api-token`,
-`release-name`, `release-url`, `release-body`.
+`release-name`, `release-url`. Exactly one of `release-body` or
+`release-body-file` must be provided — `release-body-file` is read only when
+`release-body` is empty.
 Optional: `jira-project-key` (default `PP`).
 See [`jira-release-sync/action.yml`](jira-release-sync/action.yml) for the full schema.
 

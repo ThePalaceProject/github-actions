@@ -22,8 +22,11 @@ inputs:
     description: "GitHub release URL"
     required: true
   release-body:
-    description: "GitHub release body"
-    required: true
+    description: "GitHub release body. One of release-body or release-body-file is required."
+    required: false
+  release-body-file:
+    description: "Path to a file containing the release body. Used only if release-body is not set."
+    required: false
 
 runs:
   using: "composite"
@@ -67,9 +70,21 @@ runs:
     - name: Extract Jira Keys and Update Issues
       shell: bash
       env:
-        RELEASE_BODY: ${{ github.event.release.body }}
+        RELEASE_BODY: ${{ inputs.release-body }}
+        RELEASE_BODY_FILE: ${{ inputs.release-body-file }}
         JIRA_PROJECT_KEY: ${{ inputs.jira-project-key }}
       run: |
+        if [ -z "$RELEASE_BODY" ]; then
+          if [ -z "$RELEASE_BODY_FILE" ]; then
+            echo "One of release-body or release-body-file is required." >&2
+            exit 1
+          fi
+          if [ ! -f "$RELEASE_BODY_FILE" ]; then
+            echo "release-body-file '$RELEASE_BODY_FILE' does not exist." >&2
+            exit 1
+          fi
+          RELEASE_BODY=$(cat "$RELEASE_BODY_FILE")
+        fi
         # The '|| echo ""' command ensures that if there are no keys, the line will not exit
         # prematurely with an error in the likely case that bash is running with strict error
         # checking (ie bash -e -o pipefail)
