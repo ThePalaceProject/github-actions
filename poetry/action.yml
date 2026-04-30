@@ -47,7 +47,7 @@ runs:
           POETRY_HOME: ${{ runner.temp }}/poetry
       shell: bash
 
-    - uses: actions/cache@v4
+    - uses: actions/cache@v5
       id: cache
       with:
         path: ${{ steps.poetry-dir.outputs.home }}
@@ -68,7 +68,7 @@ runs:
         echo "cache-dir=$(poetry config cache-dir)" >> $GITHUB_OUTPUT
       shell: bash
 
-    - uses: actions/cache@v4
+    - uses: actions/cache@v5
       with:
         path: ${{ steps.poetry-info.outputs.cache-dir }}
         key: |
@@ -78,7 +78,7 @@ runs:
           ${{ runner.os }}-${{ runner.arch }}-poetry${{ inputs.version }}-cache-py${{ steps.python-version.outputs.version }}-
       if: inputs.cache != 'false' && inputs.cache-restore-only == 'false'
 
-    - uses: actions/cache/restore@v4
+    - uses: actions/cache/restore@v5
       with:
         path: ${{ steps.poetry-info.outputs.cache-dir }}
         key: |
