@@ -42,6 +42,26 @@ jobs:
                   Add return confirmation. (Ticket: #PP-4126)
                   Reorganize book details page metadata. (Ticket: #PP-4047)
             expected: jira-release-sync/tests/cases/android_log.expected.json
+          - name: body_via_file
+            release_body_file_content: |
+              Release notes
+              - PP-200 read me from a file
+              - PP-201 also read from a file
+            expected: jira-release-sync/tests/cases/body_via_file.expected.json
+          - name: custom_project
+            jira_project_key: ABC
+            release_body: |
+              ## What's Changed
+              - ABC-7 fix login bug
+              - ABC-12 add new dashboard
+              - PP-99 wrong project, must be ignored
+            expected: jira-release-sync/tests/cases/custom_project.expected.json
+          - name: version_create_fails
+            release_body: |
+              - PP-1 will never be reached
+            fail_on: POST:/rest/api/3/version
+            expect_action_failure: true
+            expected: jira-release-sync/tests/cases/version_create_fails.expected.json
 
     steps:
       - uses: actions/checkout@v6
@@ -50,12 +70,27 @@ jobs:
         with:
           python-version: "3.12"
 
-      - name: Start mock Jira server
+      - name: Write release body file
+        if: matrix.case.release_body_file_content
+        env:
+          CONTENT: ${{ matrix.case.release_body_file_content }}
         run: |
           mkdir -p "$RUNNER_TEMP/jira-test"
+          printf '%s' "$CONTENT" > "$RUNNER_TEMP/jira-test/release-body.txt"
+
+      - name: Start mock Jira server
+        env:
+          FAIL_ON: ${{ matrix.case.fail_on }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/jira-test"
+          fail_args=()
+          if [ -n "$FAIL_ON" ]; then
+            fail_args=(--fail-on "$FAIL_ON")
+          fi
           python jira-release-sync/tests/mock_jira.py \
             --port 8089 \
             --log "$RUNNER_TEMP/jira-test/requests.jsonl" \
+            "${fail_args[@]}" \
             > "$RUNNER_TEMP/jira-test/server.log" 2>&1 &
           echo $! > "$RUNNER_TEMP/jira-test/server.pid"
           for _ in $(seq 1 20); do
@@ -70,15 +105,28 @@ jobs:
           exit 1
 
       - name: Run jira-release-sync against mock
+        id: action
+        continue-on-error: ${{ matrix.case.expect_action_failure == true }}
         uses: ./jira-release-sync
         with:
           jira-base-url: http://127.0.0.1:8089
           jira-user-email: test@example.com
           jira-api-token: not-a-real-token
-          jira-project-key: PP
+          jira-project-key: ${{ matrix.case.jira_project_key || 'PP' }}
           release-name: v1.2.3
           release-url: https://github.com/example/repo/releases/tag/v1.2.3
           release-body: ${{ matrix.case.release_body }}
+          release-body-file: ${{ matrix.case.release_body_file_content && format('{0}/jira-test/release-body.txt', runner.temp) || '' }}
+
+      - name: Verify action outcome
+        env:
+          EXPECTED: ${{ (matrix.case.expect_action_failure == true) && 'failure' || 'success' }}
+          ACTUAL: ${{ steps.action.outcome }}
+        run: |
+          if [ "$ACTUAL" != "$EXPECTED" ]; then
+            echo "Expected action outcome=$EXPECTED, got=$ACTUAL" >&2
+            exit 1
+          fi
 
       - name: Assert recorded requests
         run: |

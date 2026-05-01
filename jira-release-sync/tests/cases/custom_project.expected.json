@@ -1,0 +1,30 @@
+[
+  {
+    "method": "POST",
+    "path": "/rest/api/3/version",
+    "name": "v1.2.3",
+    "project": "ABC",
+    "released": false
+  },
+  {
+    "method": "GET",
+    "path": "/rest/api/3/project/ABC/versions"
+  },
+  {
+    "method": "POST",
+    "path": "/rest/api/3/version/10001/relatedwork",
+    "title": "GitHub Release Notes",
+    "url": "https://github.com/example/repo/releases/tag/v1.2.3",
+    "category": "release notes"
+  },
+  {
+    "method": "PUT",
+    "path": "/rest/api/3/issue/ABC-12",
+    "fixVersions": [{"add": {"name": "v1.2.3"}}]
+  },
+  {
+    "method": "PUT",
+    "path": "/rest/api/3/issue/ABC-7",
+    "fixVersions": [{"add": {"name": "v1.2.3"}}]
+  }
+]

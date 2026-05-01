@@ -22,6 +22,7 @@ from threading import Lock
 LOG_LOCK = Lock()
 LOG_PATH: Path
 CREATED_VERSION_ID = "10001"
+FAIL_ON: set[tuple[str, str]] = set()
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -51,11 +52,19 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def _maybe_fail(self, method: str) -> bool:
+        if (method, self.path) in FAIL_ON:
+            self._send_json(500, {"error": "injected failure"})
+            return True
+        return False
+
     def do_GET(self) -> None:
         if self.path == "/__ready__":
             self._send_json(200, {"ok": True})
             return
         self._record("GET", None)
+        if self._maybe_fail("GET"):
+            return
         if "/rest/api/3/project/" in self.path and self.path.endswith("/versions"):
             self._send_json(200, [{"id": CREATED_VERSION_ID, "name": _last_created_name()}])
             return
@@ -64,6 +73,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         body = self._read_body()
         self._record("POST", body)
+        if self._maybe_fail("POST"):
+            return
         if self.path == "/rest/api/3/version":
             _set_last_created_name((body or {}).get("name", ""))
             self._send_json(201, {"id": CREATED_VERSION_ID, "name": (body or {}).get("name")})
@@ -76,6 +87,8 @@ class Handler(BaseHTTPRequestHandler):
     def do_PUT(self) -> None:
         body = self._read_body()
         self._record("PUT", body)
+        if self._maybe_fail("PUT"):
+            return
         if self.path.startswith("/rest/api/3/issue/"):
             self.send_response(204)
             self.end_headers()
@@ -98,11 +111,25 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, required=True)
     parser.add_argument("--log", type=Path, required=True)
+    parser.add_argument(
+        "--fail-on",
+        action="append",
+        default=[],
+        metavar="METHOD:PATH",
+        help="Return 500 for matching requests, e.g. 'POST:/rest/api/3/version'.",
+    )
     args = parser.parse_args()
 
     global LOG_PATH
     LOG_PATH = args.log
     LOG_PATH.write_text("")
+
+    for spec in args.fail_on:
+        method, _, path = spec.partition(":")
+        if not method or not path:
+            sys.stderr.write(f"mock_jira: invalid --fail-on spec: {spec!r}\n")
+            sys.exit(2)
+        FAIL_ON.add((method, path))
 
     server = HTTPServer(("127.0.0.1", args.port), Handler)
     sys.stderr.write(f"mock_jira: listening on 127.0.0.1:{args.port}, log={LOG_PATH}\n")
