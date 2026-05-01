@@ -1,0 +1,92 @@
+name: Test jira-release-sync
+
+on:
+  pull_request:
+    paths:
+      - "jira-release-sync/**"
+      - ".github/workflows/test-jira-release-sync.yml"
+  push:
+    branches: [main]
+    paths:
+      - "jira-release-sync/**"
+      - ".github/workflows/test-jira-release-sync.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        case:
+          - name: with_keys
+            release_body: |
+              ## What's Changed
+              - PP-100 fix login bug
+              - PP-101 add new dashboard
+              - duplicate PP-100 should be deduped
+              - PP-42 older ticket
+              - QQ-9 (different project, must be ignored)
+            expected: jira-release-sync/tests/cases/with_keys.expected.json
+          - name: no_keys
+            release_body: |
+              ## What's Changed
+              - just some bullet points
+              - nothing referencing tickets
+            expected: jira-release-sync/tests/cases/no_keys.expected.json
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Start mock Jira server
+        run: |
+          mkdir -p "$RUNNER_TEMP/jira-test"
+          python jira-release-sync/tests/mock_jira.py \
+            --port 8089 \
+            --log "$RUNNER_TEMP/jira-test/requests.jsonl" \
+            > "$RUNNER_TEMP/jira-test/server.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/jira-test/server.pid"
+          for _ in $(seq 1 20); do
+            if curl -sf -o /dev/null "http://127.0.0.1:8089/rest/api/3/project/PP/versions"; then
+              echo "mock server ready"
+              exit 0
+            fi
+            sleep 0.25
+          done
+          echo "mock server did not become ready" >&2
+          cat "$RUNNER_TEMP/jira-test/server.log" >&2
+          exit 1
+
+      - name: Run jira-release-sync against mock
+        uses: ./jira-release-sync
+        with:
+          jira-base-url: http://127.0.0.1:8089
+          jira-user-email: test@example.com
+          jira-api-token: not-a-real-token
+          jira-project-key: PP
+          release-name: v1.2.3
+          release-url: https://github.com/example/repo/releases/tag/v1.2.3
+          release-body: ${{ matrix.case.release_body }}
+
+      - name: Assert recorded requests
+        run: |
+          python jira-release-sync/tests/assert_calls.py \
+            --log "$RUNNER_TEMP/jira-test/requests.jsonl" \
+            --expected "${{ matrix.case.expected }}"
+
+      - name: Stop mock Jira server
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/jira-test/server.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/jira-test/server.pid")" || true
+          fi
+
+      - name: Upload server log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mock-jira-log-${{ matrix.case.name }}
+          path: ${{ runner.temp }}/jira-test/
