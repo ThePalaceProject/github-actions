@@ -50,7 +50,7 @@ jobs:
             > "$RUNNER_TEMP/jira-test/server.log" 2>&1 &
           echo $! > "$RUNNER_TEMP/jira-test/server.pid"
           for _ in $(seq 1 20); do
-            if curl -sf -o /dev/null "http://127.0.0.1:8089/rest/api/3/project/PP/versions"; then
+            if curl -sf -o /dev/null "http://127.0.0.1:8089/__ready__"; then
               echo "mock server ready"
               exit 0
             fi

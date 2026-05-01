@@ -52,6 +52,9 @@ class Handler(BaseHTTPRequestHandler):
         self.wfile.write(data)
 
     def do_GET(self) -> None:
+        if self.path == "/__ready__":
+            self._send_json(200, {"ok": True})
+            return
         self._record("GET", None)
         if "/rest/api/3/project/" in self.path and self.path.endswith("/versions"):
             self._send_json(200, [{"id": CREATED_VERSION_ID, "name": _last_created_name()}])
