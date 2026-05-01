@@ -33,6 +33,15 @@ jobs:
               - just some bullet points
               - nothing referencing tickets
             expected: jira-release-sync/tests/cases/no_keys.expected.json
+          - name: android_log
+            release_body: |
+              Changes since the last release:
+
+                  Allow clicking anywhere on the page in Book Details to hide the bottom drawer.
+                  Upgrade pdfjs 2.14.305 -> 5.6.205. (Ticket: #PP-4057)
+                  Add return confirmation. (Ticket: #PP-4126)
+                  Reorganize book details page metadata. (Ticket: #PP-4047)
+            expected: jira-release-sync/tests/cases/android_log.expected.json
 
     steps:
       - uses: actions/checkout@v6
