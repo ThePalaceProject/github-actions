@@ -15,6 +15,42 @@ uses: ThePalaceProject/github-actions/<action>@v1
 
 Pin to `vX.Y.Z` if you need an immutable reference.
 
+## Reusable workflows
+
+### `claude-review`
+
+Runs Claude Code as a PR reviewer on `pull_request` events. The workflow owns
+its trigger filter (skips Dependabot), concurrency group, permissions, and
+review prompt — consumers just dispatch.
+
+```yaml
+name: Claude PR Review
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+jobs:
+  review:
+    uses: ThePalaceProject/github-actions/.github/workflows/claude-review.yml@v1
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+```
+
+Required secret: `CLAUDE_CODE_OAUTH_TOKEN`.
+
+Optional input `additional_prompt` appends repo-specific guidance to the default
+review prompt:
+
+```yaml
+jobs:
+  review:
+    uses: ThePalaceProject/github-actions/.github/workflows/claude-review.yml@v1
+    with:
+      additional_prompt: |
+        Pay special attention to changes under db/migrations/.
+    secrets:
+      CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+```
+
 ## Actions
 
 ### `poetry`
