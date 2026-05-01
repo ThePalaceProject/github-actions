@@ -51,10 +51,6 @@ jobs:
       CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
 ```
 
-The default prompt is inlined in
-[`.github/workflows/claude-review.yml`](.github/workflows/claude-review.yml); to
-change baseline review behavior, edit it there and cut a new release.
-
 ## Actions
 
 ### `poetry`
