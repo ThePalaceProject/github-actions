@@ -1,0 +1,149 @@
+name: Test jira-release-sync
+
+on:
+  pull_request:
+    paths:
+      - "jira-release-sync/**"
+      - ".github/workflows/test-jira-release-sync.yml"
+  push:
+    branches: [main]
+    paths:
+      - "jira-release-sync/**"
+      - ".github/workflows/test-jira-release-sync.yml"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        case:
+          - name: with_keys
+            release_body: |
+              ## What's Changed
+              - PP-100 fix login bug
+              - PP-101 add new dashboard
+              - duplicate PP-100 should be deduped
+              - PP-42 older ticket
+              - QQ-9 (different project, must be ignored)
+            expected: jira-release-sync/tests/cases/with_keys.expected.json
+          - name: no_keys
+            release_body: |
+              ## What's Changed
+              - just some bullet points
+              - nothing referencing tickets
+            expected: jira-release-sync/tests/cases/no_keys.expected.json
+          - name: android_log
+            release_body: |
+              Changes since the last release:
+
+                  Allow clicking anywhere on the page in Book Details to hide the bottom drawer.
+                  Upgrade pdfjs 2.14.305 -> 5.6.205. (Ticket: #PP-4057)
+                  Add return confirmation. (Ticket: #PP-4126)
+                  Reorganize book details page metadata. (Ticket: #PP-4047)
+            expected: jira-release-sync/tests/cases/android_log.expected.json
+          - name: body_via_file
+            release_body_file_content: |
+              Release notes
+              - PP-200 read me from a file
+              - PP-201 also read from a file
+            expected: jira-release-sync/tests/cases/body_via_file.expected.json
+          - name: custom_project
+            jira_project_key: ABC
+            release_body: |
+              ## What's Changed
+              - ABC-7 fix login bug
+              - ABC-12 add new dashboard
+              - PP-99 wrong project, must be ignored
+            expected: jira-release-sync/tests/cases/custom_project.expected.json
+          - name: version_create_fails
+            release_body: |
+              - PP-1 will never be reached
+            fail_on: POST:/rest/api/3/version
+            expect_action_failure: true
+            expected: jira-release-sync/tests/cases/version_create_fails.expected.json
+
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Write release body file
+        if: matrix.case.release_body_file_content
+        env:
+          CONTENT: ${{ matrix.case.release_body_file_content }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/jira-test"
+          printf '%s' "$CONTENT" > "$RUNNER_TEMP/jira-test/release-body.txt"
+
+      - name: Start mock Jira server
+        env:
+          FAIL_ON: ${{ matrix.case.fail_on }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/jira-test"
+          fail_args=()
+          if [ -n "$FAIL_ON" ]; then
+            fail_args=(--fail-on "$FAIL_ON")
+          fi
+          python jira-release-sync/tests/mock_jira.py \
+            --port 8089 \
+            --log "$RUNNER_TEMP/jira-test/requests.jsonl" \
+            "${fail_args[@]}" \
+            > "$RUNNER_TEMP/jira-test/server.log" 2>&1 &
+          echo $! > "$RUNNER_TEMP/jira-test/server.pid"
+          for _ in $(seq 1 20); do
+            if curl -sf -o /dev/null "http://127.0.0.1:8089/__ready__"; then
+              echo "mock server ready"
+              exit 0
+            fi
+            sleep 0.25
+          done
+          echo "mock server did not become ready" >&2
+          cat "$RUNNER_TEMP/jira-test/server.log" >&2
+          exit 1
+
+      - name: Run jira-release-sync against mock
+        id: action
+        continue-on-error: ${{ matrix.case.expect_action_failure == true }}
+        uses: ./jira-release-sync
+        with:
+          jira-base-url: http://127.0.0.1:8089
+          jira-user-email: test@example.com
+          jira-api-token: not-a-real-token
+          jira-project-key: ${{ matrix.case.jira_project_key || 'PP' }}
+          release-name: v1.2.3
+          release-url: https://github.com/example/repo/releases/tag/v1.2.3
+          release-body: ${{ matrix.case.release_body }}
+          release-body-file: ${{ matrix.case.release_body_file_content && format('{0}/jira-test/release-body.txt', runner.temp) || '' }}
+
+      - name: Verify action outcome
+        env:
+          EXPECTED: ${{ (matrix.case.expect_action_failure == true) && 'failure' || 'success' }}
+          ACTUAL: ${{ steps.action.outcome }}
+        run: |
+          if [ "$ACTUAL" != "$EXPECTED" ]; then
+            echo "Expected action outcome=$EXPECTED, got=$ACTUAL" >&2
+            exit 1
+          fi
+
+      - name: Assert recorded requests
+        run: |
+          python jira-release-sync/tests/assert_calls.py \
+            --log "$RUNNER_TEMP/jira-test/requests.jsonl" \
+            --expected "${{ matrix.case.expected }}"
+
+      - name: Stop mock Jira server
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/jira-test/server.pid" ]; then
+            kill "$(cat "$RUNNER_TEMP/jira-test/server.pid")" || true
+          fi
+
+      - name: Upload server log on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mock-jira-log-${{ matrix.case.name }}
+          path: ${{ runner.temp }}/jira-test/

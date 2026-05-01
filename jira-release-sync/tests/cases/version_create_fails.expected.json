@@ -1,0 +1,9 @@
+[
+  {
+    "method": "POST",
+    "path": "/rest/api/3/version",
+    "name": "v1.2.3",
+    "project": "PP",
+    "released": false
+  }
+]
