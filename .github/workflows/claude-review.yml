@@ -104,13 +104,51 @@ jobs:
                   the location of a deletion finding so it is clear the line numbers refer
                   to the pre-change file; leave additions and changes unmarked.
 
-                #### `path/to/file.ext:LINE`
-                A short paragraph explaining a finding about an added or changed line.
-                https://github.com/${{ github.repository }}/blob/${{ github.event.pull_request.head.sha }}/path/to/file.ext#L<LINE>
+              - Use the two commit SHAs EXACTLY as they appear in the templates below — they are
+                already the real head and base SHAs. Copy the SHA character-for-character. Do NOT
+                invent, guess, abbreviate, modify, or otherwise hallucinate a SHA, and do not
+                substitute a commit hash you saw in `gh pr diff`, `git log`, or anywhere else. The
+                only two valid SHAs in a permalink are the head SHA (for added/changed lines) and
+                the base SHA (for removed lines) exactly as shown. A permalink with any other SHA
+                is wrong even if every other part is correct.
 
-                #### **<Severity>**: `path/to/file.ext:START-END` (removed)
-                A short paragraph explaining a finding about lines the PR deletes.
-                https://github.com/${{ github.repository }}/blob/${{ github.event.pull_request.base.sha }}/path/to/file.ext#L<START>-L<END>
+              - There are four location shapes, one per row of the matrix below. Match your
+                finding to the correct row and copy that exact shape — do not improvise a hybrid.
+                Pick the SHA column by whether the cited lines exist at head (added/changed) or
+                only existed before the PR (removed). Pick the anchor column by whether you are
+                citing one line or a range. The ` (removed)` suffix and the `${{ github.event.pull_request.base.sha }}`
+                SHA always go together; additions and changes use neither.
+
+                | Case | Location (in the `####` heading) | SHA in permalink | Permalink anchor |
+                | ---- | -------------------------------- | ---------------- | ---------------- |
+                | Single added/changed line | `path/to/file.ext:LINE` | head | `#L<LINE>` |
+                | Added/changed range | `path/to/file.ext:START-END` | head | `#L<START>-L<END>` |
+                | Single removed line | `path/to/file.ext:LINE` (removed) | base | `#L<LINE>` |
+                | Removed range | `path/to/file.ext:START-END` (removed) | base | `#L<START>-L<END>` |
+
+              - The four examples below cover every row of the matrix. Each shows the heading,
+                the explanation line, and the permalink line. Find the one whose comment matches
+                your finding and follow it exactly.
+
+                <!-- Single added/changed line: head SHA, single-line #L anchor, no (removed), no prefix -->
+                #### `path/to/file.ext:42`
+                A short paragraph explaining a finding about one added or changed line.
+                https://github.com/${{ github.repository }}/blob/${{ github.event.pull_request.head.sha }}/path/to/file.ext#L42
+
+                <!-- Added/changed range: head SHA, #L<START>-L<END> anchor, no (removed). Example carries a Minor: prefix. -->
+                #### **Minor**: `path/to/file.ext:54-76`
+                A short paragraph explaining a finding that spans several added or changed lines.
+                https://github.com/${{ github.repository }}/blob/${{ github.event.pull_request.head.sha }}/path/to/file.ext#L54-L76
+
+                <!-- Single removed line: base SHA, single-line #L anchor, (removed) suffix. Line number is the pre-change number from `gh pr diff`. -->
+                #### `path/to/file.ext:108` (removed)
+                A short paragraph explaining a finding about one line the PR deletes.
+                https://github.com/${{ github.repository }}/blob/${{ github.event.pull_request.base.sha }}/path/to/file.ext#L108
+
+                <!-- Removed range: base SHA, #L<START>-L<END> anchor, (removed) suffix. Example carries a Nit: prefix. -->
+                #### **Nit**: `path/to/file.ext:120-134` (removed)
+                A short paragraph explaining a finding about several lines the PR deletes.
+                https://github.com/${{ github.repository }}/blob/${{ github.event.pull_request.base.sha }}/path/to/file.ext#L120-L134
 
             Omit any sections that are empty.
 
