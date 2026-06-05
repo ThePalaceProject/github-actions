@@ -43,6 +43,18 @@ jobs:
           prompt: |
             Do a detailed code review of this pull request following these guidelines.
 
+            ### Actionability requirement
+
+            Every finding — including `Minor:` and `Nit:` — must be actionable: there must be a
+            concrete change you are recommending the author make. If there is nothing for the author
+            to do, do not write the finding.
+
+            - Never flag something "for awareness", "for visibility", "just flagging", "noting that",
+              or "no change needed". If you catch yourself writing any of those, delete the finding.
+            - Do not flag pre-existing issues, hypothetical edge cases, or scenarios that are
+              unreachable in practice — even to note they are unhandled.
+            - A finding that ends by concluding the code is actually fine is not a finding. Drop it.
+
             ### Bug-flagging criteria
 
             - It meaningfully impacts the accuracy, performance, security, or maintainability of the code.
