@@ -37,6 +37,11 @@ jobs:
 
 Required secret: `CLAUDE_CODE_OAUTH_TOKEN`.
 
+To skip the review for a given push, include `[skip claude]` (or `[skip-claude]`,
+`[claude skip]`, `[claude-skip]`) anywhere in the PR's most recent commit message. The check is
+case-insensitive and looks only at the head commit, so pushing a later commit
+without the marker re-enables review on the next run.
+
 Optional input `additional_prompt` appends repo-specific guidance to the default
 review prompt:
 
