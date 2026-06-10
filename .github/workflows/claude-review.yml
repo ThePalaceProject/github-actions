@@ -30,8 +30,26 @@ jobs:
     steps:
       - name: Checkout caller repo
         uses: actions/checkout@v6
+        with:
+          # Fetch the merge commit plus its parents so the PR head commit is
+          # available locally for the skip-marker check below.
+          fetch-depth: 2
+
+      - name: Check for skip marker
+        id: skip_check
+        run: |
+          message=$(git log -1 --format=%B "${{ github.event.pull_request.head.sha }}")
+          if grep -qiE '\[(skip[ -]claude|claude[ -]skip)\]' <<<"$message"; then
+            reason="Claude review skipped: the head commit message (${{ github.event.pull_request.head.sha }}) contains a skip marker such as [skip claude]. Remove the marker (or push a new commit without it) to run the review."
+            echo "::notice title=Claude review skipped::$reason"
+            echo "$reason" >> "$GITHUB_STEP_SUMMARY"
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
 
       - name: Run Claude Code review
+        if: steps.skip_check.outputs.skip != 'true'
         uses: anthropics/claude-code-action@v1
         with:
           claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
