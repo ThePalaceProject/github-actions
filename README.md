@@ -20,8 +20,10 @@ Pin to `vX.Y.Z` if you need an immutable reference.
 ### `claude-review`
 
 Runs Claude Code as a PR reviewer on `pull_request` events. The workflow owns
-its trigger filter (skips Dependabot), concurrency group, permissions, and
-review prompt — consumers just dispatch.
+its trigger filter (skips Dependabot and PRs from forks), concurrency group,
+permissions, and review prompt — consumers just dispatch. Fork PRs are skipped
+because they run with a read-only token and no access to secrets, so the review
+can't authenticate.
 
 ```yaml
 name: Claude PR Review
