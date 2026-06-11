@@ -20,7 +20,12 @@ jobs:
   review:
     name: Claude Review
     runs-on: ubuntu-latest
-    if: github.event.pull_request.user.login != 'dependabot[bot]'
+    # Fork PRs run with a read-only token and no access to secrets, so the
+    # review can't authenticate. Skip them (along with dependabot) until fork
+    # support is added.
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      github.event.pull_request.user.login != 'dependabot[bot]'
     permissions:
       contents: read
       pull-requests: write
