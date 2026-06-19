@@ -64,7 +64,7 @@ jobs:
             expected: jira-release-sync/tests/cases/version_create_fails.expected.json
 
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
 
       - uses: actions/setup-python@v6
         with:
