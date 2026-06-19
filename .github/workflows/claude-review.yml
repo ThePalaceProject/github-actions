@@ -35,7 +35,7 @@ jobs:
 
     steps:
       - name: Checkout caller repo
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           # Fetch the merge commit plus its parents so the PR head commit is
           # available locally for the skip-marker check below.
