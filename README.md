@@ -77,6 +77,25 @@ Inputs: `version`, `cache`, `cache-restore-only`, `cache-name`.
 Outputs: `version`, `home`, `cache-dir`.
 See [`poetry/action.yml`](poetry/action.yml) for the full schema.
 
+### `disable-network-offload`
+
+Turns off TX and RX checksum offload on the runner's network interface. This
+works around network failures in Docker builds on GitHub-hosted runners (see
+[actions/runner-images#1187](https://github.com/actions/runner-images/issues/1187#issuecomment-686735760)).
+
+The action finds the interface from the default route, so it does not depend on
+the interface name (for example, `eth0`). It prints the interface list first, to
+help debug failures. It fails with a clear error if there is no default route.
+
+```yaml
+- name: Disable network offload
+  uses: ThePalaceProject/github-actions/disable-network-offload@v1
+```
+
+No inputs or outputs. Use it only on GitHub-hosted Linux runners. It uses `ip`,
+`ethtool`, and `sudo`. It also expects the default route to have a gateway
+(`default via <gateway> dev <interface>`), as GitHub-hosted runners do.
+
 ### `jira-release-sync`
 
 On a published GitHub release, creates a matching Jira version, links the

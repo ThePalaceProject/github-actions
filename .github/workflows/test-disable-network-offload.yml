@@ -1,0 +1,41 @@
+name: Test disable-network-offload
+
+on:
+  pull_request:
+    paths:
+      - "disable-network-offload/**"
+      - ".github/workflows/test-disable-network-offload.yml"
+  push:
+    branches: [main]
+    paths:
+      - "disable-network-offload/**"
+      - ".github/workflows/test-disable-network-offload.yml"
+
+jobs:
+  test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04]
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Disable network offload
+        uses: ./disable-network-offload
+
+      - name: Check that TX and RX checksum offload are off
+        run: |
+          iface="$(ip -o route show default | awk '{print $5; exit}')"
+          features="$(ethtool -k "$iface")"
+          echo "$features"
+          failed=0
+          for feature in rx-checksumming tx-checksumming; do
+            if ! grep -Eq "^${feature}: off" <<<"$features"; then
+              echo "::error::Expected ${feature} to be off on ${iface}."
+              failed=1
+            fi
+          done
+          exit "$failed"
